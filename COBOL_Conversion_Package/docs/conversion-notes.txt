@@ -1,0 +1,20 @@
+CUSTOMER MAINTENANCE PROGRAM CONVERSION NOTES
+=============================================
+
+1. Program Dependencies:
+   - Requires access to indexed customer file
+   - Uses standard date routines from DATELIB
+
+2. Special Considerations:
+   - COMP-3 fields need special handling for Java conversion
+   - Screen handling uses 3270 terminal codes
+   - Date format is YYYYMMDD throughout
+
+3. Business Rules:
+   - Customer IDs must be 6 characters
+   - Credit limit cannot exceed $100,000
+   - All customer records require a phone number
+
+4. Known Issues:
+   - Error handling is minimal in original code
+   - No validation for state codes

@@ -1,0 +1,66 @@
+create virtual environment: python -m venv .venv
+Activate virtual environment: .venv\Scripts\activate
+How to activate .env file: pip install python-dotenv then from dotenv import load_dotenv then add this function load_dotenv()  # Load variables from .env into the environment
+Run the requirement.txt file: pip install -r requirements.txt
+create requirement.txt file: pip freeze > requirements.txt
+to run the program : streamlit run main.py
+
+GIT PUSH Steps: 
+In the terminal, initialize a new Git repository: git init
+Add all files in your folder to the staging area: git add .
+Commit the files with a message: git commit -m "Initial commit"
+Link your local repository to the GitHub repository you mentioned (first time required): git remote add origin https://github.com/tosurajitc/COBOL_to_Java
+Push the changes to the remote repository: git push -u origin main (or master)
+
+If git hub fails then:
+git remote rename origin old-origin
+git remote add origin https://github.com/tosurajitc/COBOL_to_Java
+
+
+# GROQ API configuration
+GROQ_API_KEY=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
+GROQ_MODEL_NAME=deepseek-r1-distill-llama-70b
+GROQ_API_URL=https://api.groq.com/openai/v1/chat/completions
+
+cobol_to_java_converter/
+│
+├── app.py                      # Main Streamlit application
+├── .env                        # Environment variables (API keys, output path)
+├── requirements.txt            # Project dependencies
+│
+├── agents/
+│   ├── __init__.py
+│   ├── data_agent.py           # Extracts and processes COBOL files
+│   ├── analysis_agent.py       # Analyzes code and extracts business logic
+│   ├── conversion_agent.py     # Converts COBOL to Java
+│   └── base_agent.py           # Common agent functionality
+│
+├── utils/
+│   ├── __init__.py
+│   ├── file_utils.py           # File handling utilities
+│   ├── cobol_parser.py         # COBOL parsing helpers
+│   ├── java_generator.py       # Java code generation utilities
+│   └── llm_utils.py            # LLM API interaction helpers
+│
+├── config/
+│   ├── __init__.py
+│   └── settings.py             # Application settings
+│
+├── static/
+│   ├── css/
+│   │   └── style.css           # Custom styling for Streamlit
+│   └── images/
+│       └── logo.png            # Application logo
+│
+├── templates/
+│   ├── prompts/
+│   │   ├── analysis_prompts.py # Prompts for analysis agent
+│   │   └── conversion_prompts.py # Prompts for conversion agent
+│   └── java/
+│       └── base_class.java     # Java templates
+│
+└── tests/
+    ├── __init__.py
+    ├── test_data_agent.py
+    ├── test_analysis_agent.py
+    └── test_conversion_agent.py

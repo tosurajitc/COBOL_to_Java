@@ -1,0 +1,65 @@
+IDENTIFICATION DIVISION.
+       PROGRAM-ID. CUSTMAINT.
+       AUTHOR. JOHN SMITH.
+       
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-370.
+       OBJECT-COMPUTER. IBM-370.
+       
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT CUSTOMER-FILE ASSIGN TO CUSTFILE
+           ORGANIZATION IS INDEXED
+           ACCESS MODE IS DYNAMIC
+           RECORD KEY IS CUST-ID
+           FILE STATUS IS CUST-FILE-STATUS.
+       
+       DATA DIVISION.
+       FILE SECTION.
+       FD  CUSTOMER-FILE
+           LABEL RECORDS ARE STANDARD
+           RECORD CONTAINS 100 CHARACTERS.
+       COPY CUSTRCRD.
+       
+       WORKING-STORAGE SECTION.
+       COPY CUSTWS.
+       
+       PROCEDURE DIVISION.
+       0000-MAIN-PARA.
+           PERFORM 1000-INIT-PARA.
+           PERFORM 2000-PROCESS-PARA UNTIL END-OF-FILE.
+           PERFORM 3000-CLOSE-PARA.
+           STOP RUN.
+           
+       1000-INIT-PARA.
+           OPEN I-O CUSTOMER-FILE.
+           IF CUST-FILE-STATUS NOT = '00'
+              DISPLAY 'ERROR OPENING CUSTOMER FILE: ' CUST-FILE-STATUS
+              MOVE 'Y' TO END-OF-FILE-SW
+           END-IF.
+           
+       2000-PROCESS-PARA.
+           DISPLAY 'ENTER CUSTOMER ID (OR X TO EXIT): '.
+           ACCEPT CUST-ID.
+           IF CUST-ID = 'X'
+              MOVE 'Y' TO END-OF-FILE-SW
+           ELSE
+              PERFORM 2100-READ-CUSTOMER
+           END-IF.
+           
+       2100-READ-CUSTOMER.
+           READ CUSTOMER-FILE
+               INVALID KEY 
+                   DISPLAY 'CUSTOMER NOT FOUND'
+               NOT INVALID KEY
+                   PERFORM 2200-DISPLAY-CUSTOMER
+           END-READ.
+           
+       2200-DISPLAY-CUSTOMER.
+           DISPLAY 'CUSTOMER NAME: ' CUST-NAME.
+           DISPLAY 'CUSTOMER ADDR: ' CUST-ADDR.
+           DISPLAY 'CUSTOMER CITY: ' CUST-CITY.
+           
+       3000-CLOSE-PARA.
+           CLOSE CUSTOMER-FILE.
