@@ -12,14 +12,17 @@ class DataAgent(BaseAgent):
     """Agent responsible for extracting and processing COBOL files"""
     
     def __init__(self, verbose: bool = False):
+        # Call parent __init__ with all required arguments
         super().__init__(
             name="COBOL Data Extraction Specialist",
             description="Extracts and processes COBOL source files from zip archives, " + 
                         "validates folder structure, and prepares data for analysis.",
             verbose=verbose
         )
+        # Then add any DataAgent-specific initialization
         self.logger = logging.getLogger(__name__)
-    
+
+        
     def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Process the zip file and extract COBOL programs
