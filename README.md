@@ -113,9 +113,6 @@ The application is built using the following components:
 - **GROQ/LangChain**: For accessing large language models
 - **Python**: Core application logic and file processing
 
-## License
-
-This project is licensed under the 
 
 ## Acknowledgments
 
