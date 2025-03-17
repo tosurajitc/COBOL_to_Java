@@ -17,10 +17,7 @@ git remote rename origin old-origin
 git remote add origin https://github.com/tosurajitc/COBOL_to_Java
 
 
-# GROQ API configuration
-GROQ_API_KEY=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
-GROQ_MODEL_NAME=deepseek-r1-distill-llama-70b
-GROQ_API_URL=https://api.groq.com/openai/v1/chat/completions
+https://tosurajitc-cobol-to-java-app-tv1dnl.streamlit.app/
 
 cobol_to_java_converter/
 │
