@@ -251,6 +251,11 @@ def parse_java_json(json_str):
         # Last resort: create a default Java class
         raise ValueError(f"Failed to parse JSON or extract Java code: {str(e)}")
 
+
+
+
+
+
 def main():
     # Header
     st.markdown('<div class="main-header">COBOL to Java Converter</div>', unsafe_allow_html=True)
@@ -397,6 +402,12 @@ def main():
         try:
             st.markdown('<div class="sub-header">Java Conversion</div>', unsafe_allow_html=True)
 
+            def get_standard_package(program_name):
+                """Generate a standardized package name for a given program"""
+                # Convert to lowercase and remove any special characters
+                safe_name = ''.join(c.lower() if c.isalnum() else '' for c in program_name)
+                return f"com.conversion.{safe_name}"
+            
             def display_java_structure(java_classes):
                 """
                 Display the Java project folder structure in a tree-like format
@@ -404,16 +415,31 @@ def main():
                 Args:
                     java_classes: List of generated Java classes with package information
                 """
+
+                
                 if not java_classes:
                     return "No Java classes generated yet."
                 
-                # Group classes by package
+                # Group classes by package and deduplicate
                 packages = {}
+                class_tracker = set()  # Track classes that have already been added
+                
                 for java_class in java_classes:
                     package = java_class.get("package", "default")
+                    class_name = java_class["name"]
+                    
+                    # Create a unique key for this class
+                    class_key = f"{package}.{class_name}"
+                    
+                    # Skip if we've already processed this class
+                    if class_key in class_tracker:
+                        continue
+                    
+                    # Add to tracker and packages
+                    class_tracker.add(class_key)
                     if package not in packages:
                         packages[package] = []
-                    packages[package].append(java_class["name"])
+                    packages[package].append(class_name)
                 
                 # Build folder structure representation
                 structure = ["📁 src", "  📁 main", "    📁 java"]
@@ -543,30 +569,35 @@ def main():
                                             progress_bar.progress(20)
                                             
                                             # Build step prompt
+
+                                            # Build step prompt
                                             step_prompt = f"""
-    You are an expert COBOL to Java conversion specialist. 
-    Convert the following COBOL program to a well-structured Java class:
+                                            You are an expert COBOL to Java conversion specialist. 
+                                            Convert the following COBOL program to a well-structured Java class:
 
-    Program Name: {selected_program}
+                                            Program Name: {selected_program}
 
-    Business Rules:
-    {business_rules}
+                                            Business Rules:
+                                            {business_rules}
 
-    Functional Analysis:
-    {functional_analysis}
+                                            Functional Analysis:
+                                            {functional_analysis}
 
-    Current Step: {current_step_text}
+                                            Current Step: {current_step_text}
 
-    The output should be a JSON object with the following structure:
-    {{
-        "file_name": "ClassName",
-        "package": "com.company.module",
-        "content": "Full Java source code",
-        "description": "Brief description of the class"
-    }}
+                                            IMPORTANT: Use the package name "{get_standard_package(selected_program)}" for all generated code.
 
-    Focus on modern Java practices, maintain clean code, and follow Java naming conventions.
-    """
+                                            The output should be a JSON object with the following structure:
+                                            {{
+                                                "file_name": "ClassName",
+                                                "package": "{get_standard_package(selected_program)}",
+                                                "content": "Full Java source code",
+                                                "description": "Brief description of the class"
+                                            }}
+
+                                            Focus on modern Java practices, maintain clean code, and follow Java naming conventions.
+                                            """
+
                                             
                                             # Initialize agent
                                             status_text.info("Initializing conversion agent...")
@@ -615,6 +646,10 @@ def main():
                                                 # Parse JSON
                                                 status_text.info("Parsing JSON...")
                                                 file_info = parse_java_json(json_str)
+                                                
+                                                # Enforce standard package name
+                                                if file_info and "package" in file_info:
+                                                    file_info["package"] = get_standard_package(selected_program)
                                             
                                             # Create Java file
                                             status_text.info("Creating Java file...")
@@ -779,15 +814,26 @@ def main():
                                     zip_buffer = io.BytesIO()
                                     
                                     # Write files to the ZIP
+                                  # Write files to the ZIP
                                     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                                        # Add all Java files
+                                        # Add all Java files (deduplicating by class name)
+                                        added_files = set()
                                         for java_class in st.session_state.conversion_progress["java_classes"]:
                                             if os.path.exists(java_class["path"]):
+                                                class_key = f"{java_class['package']}.{java_class['name']}"
+                                                
+                                                # Skip if already added
+                                                if class_key in added_files:
+                                                    continue
+                                                    
+                                                added_files.add(class_key)
                                                 zipf.write(
                                                     java_class["path"],
                                                     arcname=f"java/{java_class['package'].replace('.', '/')}/{java_class['name']}.java"
                                                 )
                                         
+                                        # Add README file
+                                        # (Keep your existing README code)
                                         # Add README file
                                         readme_content = f"""# Converted Java Project: {selected_program}
 
