@@ -10,11 +10,11 @@ from agents.data_agent import DataAgent
 from agents.analysis_agent import AnalysisAgent
 from agents.conversion_agent import ConversionAgent
 from utils.java_generator import generate_java_class, generate_project_structure
-
 import tempfile
 import zipfile
-from pathlib import Path
 from collections import OrderedDict
+import shutil
+
 
 # Import utility functions if needed
 from utils.file_utils import extract_cobol_files, validate_folder_structure
@@ -252,7 +252,116 @@ def parse_java_json(json_str):
         raise ValueError(f"Failed to parse JSON or extract Java code: {str(e)}")
 
 
-
+def process_github_repository(repo_url, branch=None, token=None):
+    """
+    Clone a GitHub repository and prepare it for COBOL processing
+    
+    Args:
+        repo_url: URL of the GitHub repository
+        branch: Branch to clone (None for default branch)
+        token: GitHub Personal Access Token for private repositories
+        
+    Returns:
+        Path to the processed ZIP file or None if failed
+    """
+    import tempfile
+    import zipfile
+    import os
+    import subprocess
+    import shutil
+    from pathlib import Path
+    import re
+    
+    # Extract owner and repo name from URL
+    # Example: https://github.com/username/repository
+    match = re.match(r'https?://github\.com/([^/]+)/([^/]+)', repo_url)
+    if not match:
+        st.error("Invalid GitHub repository URL format")
+        return None
+    
+    owner, repo_name = match.groups()
+    repo_name = repo_name.strip('/')
+    
+    try:
+        # Create temporary directory for cloning
+        temp_dir = tempfile.mkdtemp()
+        
+        # Prepare git clone command
+        if token:
+            # Use token for authentication
+            auth_url = f"https://{token}@github.com/{owner}/{repo_name}.git"
+        else:
+            # Public repository
+            auth_url = f"https://github.com/{owner}/{repo_name}.git"
+        
+        # Clone the repository
+        clone_cmd = ["git", "clone"]
+        
+        # Add branch if specified
+        if branch:
+            clone_cmd.extend(["-b", branch])
+        
+        # Add depth to speed up cloning
+        clone_cmd.extend(["--depth", "1"])
+        
+        # Add repository URL and target directory
+        clone_cmd.extend([auth_url, temp_dir])
+        
+        # Execute git clone
+        subprocess.run(clone_cmd, check=True, capture_output=True)
+        
+        # Create a zip file of the repository
+        zip_path = tempfile.mktemp(suffix='.zip')
+        
+        # Check if there's a src directory, if not, create one and move COBOL files
+        src_dir = Path(temp_dir) / "src"
+        if not src_dir.exists():
+            # Create proper directory structure for processing
+            src_dir.mkdir()
+            programs_dir = src_dir / "programs"
+            copybooks_dir = src_dir / "copybooks"
+            programs_dir.mkdir()
+            copybooks_dir.mkdir()
+            
+            # Find COBOL files in repository
+            repo_path = Path(temp_dir)
+            cobol_files = list(repo_path.glob('**/*.cbl')) + list(repo_path.glob('**/*.cob'))
+            copybook_files = list(repo_path.glob('**/*.cpy'))
+            jcl_files = list(repo_path.glob('**/*.jcl'))
+            
+            # Move COBOL programs to programs directory
+            for file in cobol_files:
+                shutil.copy2(file, programs_dir / file.name)
+            
+            # Move copybooks to copybooks directory
+            for file in copybook_files:
+                shutil.copy2(file, copybooks_dir / file.name)
+            
+            # Create JCL directory if needed
+            if jcl_files:
+                jcl_dir = Path(temp_dir) / "jcl"
+                jcl_dir.mkdir(exist_ok=True)
+                for file in jcl_files:
+                    shutil.copy2(file, jcl_dir / file.name)
+        
+        # Create a ZIP file with the contents
+        shutil.make_archive(zip_path[:-4], 'zip', temp_dir)
+        
+        # Clean up the temp directory
+        shutil.rmtree(temp_dir)
+        
+        return zip_path
+    
+    except Exception as e:
+        import traceback
+        st.error(f"Error processing GitHub repository: {str(e)}")
+        st.code(traceback.format_exc())
+        
+        # Clean up on failure
+        if 'temp_dir' in locals() and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        
+        return None
 
 
 
@@ -287,51 +396,436 @@ def main():
     with tab1:
         st.markdown('<div class="sub-header">Upload Your COBOL Program</div>', unsafe_allow_html=True)
         
-        st.markdown(
-            '<div class="info-box">'
-            "<b>Expected ZIP structure:</b><br>"
-            "Your ZIP file should follow this structure:<br><br>"
-            "```<br>"
-            "COBOL_Conversion_Package/<br>"
-            "├── src/<br>"
-            "│   ├── programs/        # Main COBOL programs (.cbl, .cob)<br>"
-            "│   ├── copybooks/       # COBOL copybooks (.cpy)<br>"
-            "│   └── proc/            # Procedure division code<br>"
-            "├── jcl/                 # Job Control Language files<br>"
-            "├── db/                  # Database definitions<br>"
-            "└── docs/                # Documentation<br>"
-            "```"
-            "</div>",
-            unsafe_allow_html=True
+        # Define helper functions
+        def process_github_repository(repo_url, branch=None, token=None):
+            """
+            Clone a GitHub repository and prepare it for COBOL processing
+            
+            Args:
+                repo_url: URL of the GitHub repository
+                branch: Branch to clone (None for default branch)
+                token: GitHub Personal Access Token for private repositories
+                
+            Returns:
+                Path to the processed ZIP file or None if failed
+            """
+            import tempfile
+            import zipfile
+            import os
+            import subprocess
+            import shutil
+            from pathlib import Path
+            import re
+            
+            # Extract owner and repo name from URL
+            # Example: https://github.com/username/repository
+            match = re.match(r'https?://github\.com/([^/]+)/([^/]+)', repo_url)
+            if not match:
+                st.error("Invalid GitHub repository URL format")
+                return None
+            
+            owner, repo_name = match.groups()
+            repo_name = repo_name.strip('/')
+            
+            try:
+                # Create temporary directory for cloning
+                temp_dir = tempfile.mkdtemp()
+                
+                # Prepare git clone command
+                if token:
+                    # Use token for authentication
+                    auth_url = f"https://{token}@github.com/{owner}/{repo_name}.git"
+                else:
+                    # Public repository
+                    auth_url = f"https://github.com/{owner}/{repo_name}.git"
+                
+                # Clone the repository
+                clone_cmd = ["git", "clone"]
+                
+                # Add branch if specified
+                if branch:
+                    clone_cmd.extend(["-b", branch])
+                
+                # Add depth to speed up cloning
+                clone_cmd.extend(["--depth", "1"])
+                
+                # Add repository URL and target directory
+                clone_cmd.extend([auth_url, temp_dir])
+                
+                # Execute git clone
+                subprocess.run(clone_cmd, check=True, capture_output=True)
+                
+                # Create a zip file of the repository
+                zip_path = tempfile.mktemp(suffix='.zip')
+                
+                # Check if there's a src directory, if not, create one and move COBOL files
+                src_dir = Path(temp_dir) / "src"
+                if not src_dir.exists():
+                    # Create proper directory structure for processing
+                    src_dir.mkdir()
+                    programs_dir = src_dir / "programs"
+                    copybooks_dir = src_dir / "copybooks"
+                    programs_dir.mkdir()
+                    copybooks_dir.mkdir()
+                    
+                    # Find COBOL files in repository
+                    repo_path = Path(temp_dir)
+                    cobol_files = list(repo_path.glob('**/*.cbl')) + list(repo_path.glob('**/*.cob'))
+                    copybook_files = list(repo_path.glob('**/*.cpy'))
+                    jcl_files = list(repo_path.glob('**/*.jcl'))
+                    
+                    # Move COBOL programs to programs directory
+                    for file in cobol_files:
+                        shutil.copy2(file, programs_dir / file.name)
+                    
+                    # Move copybooks to copybooks directory
+                    for file in copybook_files:
+                        shutil.copy2(file, copybooks_dir / file.name)
+                    
+                    # Create JCL directory if needed
+                    if jcl_files:
+                        jcl_dir = Path(temp_dir) / "jcl"
+                        jcl_dir.mkdir(exist_ok=True)
+                        for file in jcl_files:
+                            shutil.copy2(file, jcl_dir / file.name)
+                
+                # Create a ZIP file with the contents
+                shutil.make_archive(zip_path[:-4], 'zip', temp_dir)
+                
+                # Clean up the temp directory
+                shutil.rmtree(temp_dir)
+                
+                return zip_path
+            
+            except Exception as e:
+                import traceback
+                st.error(f"Error processing GitHub repository: {str(e)}")
+                st.code(traceback.format_exc())
+                
+                # Clean up on failure
+                if 'temp_dir' in locals() and os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+                
+                return None
+
+        def process_single_program_file(zip_file_path):
+            """
+            Process a ZIP file containing a single COBOL program with dependencies
+            
+            Args:
+                zip_file_path: Path to the uploaded ZIP file
+                
+            Returns:
+                Dictionary containing extraction results
+            """
+            import tempfile
+            import zipfile
+            import os
+            import shutil
+            from pathlib import Path
+            
+            try:
+                # Create temporary directory for structured content
+                temp_dir = tempfile.mkdtemp()
+                
+                # Create the expected directory structure
+                structured_dir = Path(temp_dir)
+                src_dir = structured_dir / "src"
+                src_dir.mkdir(exist_ok=True)
+                
+                programs_dir = src_dir / "programs"
+                programs_dir.mkdir(exist_ok=True)
+                
+                copybooks_dir = src_dir / "copybooks"
+                copybooks_dir.mkdir(exist_ok=True)
+                
+                # Extract and process the original ZIP file
+                with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+                    # Get list of all files in the ZIP
+                    all_files = zip_ref.namelist()
+                    
+                    # Process each file based on extension
+                    for file_path in all_files:
+                        file_name = os.path.basename(file_path)
+                        
+                        # Skip directories
+                        if file_name == '' or file_path.endswith('/'):
+                            continue
+                        
+                        # Extract file content
+                        file_content = zip_ref.read(file_path)
+                        
+                        # Determine file type by extension
+                        if file_name.lower().endswith(('.cbl', '.cob')):
+                            # COBOL program file
+                            with open(os.path.join(programs_dir, file_name), 'wb') as f:
+                                f.write(file_content)
+                                
+                        elif file_name.lower().endswith('.cpy'):
+                            # Copybook file
+                            with open(os.path.join(copybooks_dir, file_name), 'wb') as f:
+                                f.write(file_content)
+                                
+                        elif file_name.lower().endswith('.jcl'):
+                            # JCL file - create JCL directory if needed
+                            jcl_dir = structured_dir / "jcl"
+                            jcl_dir.mkdir(exist_ok=True)
+                            
+                            with open(os.path.join(jcl_dir, file_name), 'wb') as f:
+                                f.write(file_content)
+                
+                # Create the new structured ZIP file
+                structured_zip_path = tempfile.mktemp(suffix='.zip')
+                
+                with zipfile.ZipFile(structured_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    # Recursively add all files from the structured directory
+                    for root, _, files in os.walk(structured_dir):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            # Calculate relative path (to maintain directory structure)
+                            rel_path = os.path.relpath(file_path, structured_dir)
+                            zipf.write(file_path, rel_path)
+                
+                # Skip the DataAgent validation and manually create the expected structure
+                extraction_result = {
+                    'success': True,
+                    'extraction_path': temp_dir,
+                    'data': {
+                        'programs': [],
+                        'copybooks': [],
+                        'other_files': [],
+                        'file_relationships': {},
+                        'metadata': {
+                            'num_programs': 0,
+                            'num_copybooks': 0,
+                            'extraction_path': temp_dir
+                        }
+                    }
+                }
+                
+                # Find all COBOL programs and add them to the result
+                for file_path in programs_dir.glob('*.cbl'):
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+                    
+                    program_info = {
+                        'name': file_path.stem,
+                        'path': str(file_path),
+                        'content': content,
+                        'related_copybooks': []  # We'll populate this later
+                    }
+                    
+                    extraction_result['data']['programs'].append(program_info)
+                    extraction_result['data']['metadata']['num_programs'] += 1
+                
+                # Also check for .cob files
+                for file_path in programs_dir.glob('*.cob'):
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+                    
+                    program_info = {
+                        'name': file_path.stem,
+                        'path': str(file_path),
+                        'content': content,
+                        'related_copybooks': []  # We'll populate this later
+                    }
+                    
+                    extraction_result['data']['programs'].append(program_info)
+                    extraction_result['data']['metadata']['num_programs'] += 1
+                    
+                # Find all copybooks and add them to the result
+                for file_path in copybooks_dir.glob('*.cpy'):
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+                    
+                    copybook_info = {
+                        'name': file_path.stem,
+                        'path': str(file_path),
+                        'content': content
+                    }
+                    
+                    extraction_result['data']['copybooks'].append(copybook_info)
+                    extraction_result['data']['metadata']['num_copybooks'] += 1
+                
+                # For each program, try to find referenced copybooks
+                for program in extraction_result['data']['programs']:
+                    # Look for "COPY" statements in the program content
+                    import re
+                    copybook_refs = re.findall(r'COPY\s+([A-Za-z0-9-]+)', program['content'], re.IGNORECASE)
+                    program['related_copybooks'] = list(set(copybook_refs))
+                    
+                    # Add to file relationships
+                    extraction_result['data']['file_relationships'][program['name']] = program['related_copybooks']
+                
+                return extraction_result
+                    
+            except Exception as e:
+                import traceback
+                st.error(f"Error processing single program: {str(e)}")
+                st.code(traceback.format_exc())
+                
+                # Clean up temporary directory
+                if 'temp_dir' in locals() and os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+                
+                return {
+                    'success': False,
+                    'error': str(e),
+                    'data': None
+                }
+        
+        # Add upload options
+        upload_option = st.radio(
+            "Select Source",
+            ["Upload ZIP File", "Connect to GitHub Repository", "Single COBOL Program"],
+            index=0
         )
         
-        uploaded_file = st.file_uploader("Upload your COBOL ZIP file", type=["zip"])
-        
-        if uploaded_file is not None:
-            # Save uploaded file to temp directory
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as tmp_file:
-                tmp_file.write(uploaded_file.getvalue())
-                zip_file_path = tmp_file.name
-            
-            st.session_state.zip_file_path = zip_file_path
-            st.session_state.upload_success = True
-            
+        # ZIP File Upload Option
+        if upload_option == "Upload ZIP File":
             st.markdown(
-                '<div class="success-box">'
-                f"Successfully uploaded: {uploaded_file.name}"
+                '<div class="info-box">'
+                "<b>Expected ZIP structure:</b><br>"
+                "Your ZIP file should follow this structure:<br><br>"
+                "```<br>"
+                "COBOL_Conversion_Package/<br>"
+                "├── src/<br>"
+                "│   ├── programs/        # Main COBOL programs (.cbl, .cob)<br>"
+                "│   ├── copybooks/       # COBOL copybooks (.cpy)<br>"
+                "│   └── proc/            # Procedure division code<br>"
+                "├── jcl/                 # Job Control Language files<br>"
+                "├── db/                  # Database definitions<br>"
+                "└── docs/                # Documentation<br>"
+                "```"
                 "</div>",
                 unsafe_allow_html=True
             )
             
+            uploaded_file = st.file_uploader("Upload your COBOL ZIP file", type=["zip"], key="zip_upload")
+            
+            if uploaded_file is not None:
+                # Save uploaded file to temp directory
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as tmp_file:
+                    tmp_file.write(uploaded_file.getvalue())
+                    zip_file_path = tmp_file.name
+                
+                st.session_state.zip_file_path = zip_file_path
+                st.session_state.upload_source = "zip"
+                st.session_state.upload_success = True
+                
+                st.markdown(
+                    '<div class="success-box">'
+                    f"Successfully uploaded: {uploaded_file.name}"
+                    "</div>",
+                    unsafe_allow_html=True
+                )
+        
+        # GitHub Repository Option
+        elif upload_option == "Connect to GitHub Repository":
+            st.markdown(
+                '<div class="info-box">'
+                "<b>GitHub Repository Connection:</b><br>"
+                "Enter a GitHub repository URL containing COBOL code.<br>"
+                "The repository should contain COBOL programs (.cbl, .cob) and related files.<br>"
+                "For private repositories, you'll need to provide a personal access token."
+                "</div>",
+                unsafe_allow_html=True
+            )
+            
+            # GitHub repository URL input
+            repo_url = st.text_input("GitHub Repository URL", 
+                                placeholder="https://github.com/username/repository")
+            
+            # Branch selection
+            branch = st.text_input("Branch (leave empty for default branch)", 
+                            placeholder="main")
+            
+            # Optional: Personal access token for private repositories
+            use_token = st.checkbox("Use Personal Access Token (for private repositories)")
+            
+            token = None
+            if use_token:
+                token = st.text_input("GitHub Personal Access Token", type="password")
+            
+            if st.button("Connect to Repository") and repo_url:
+                with st.spinner("Connecting to GitHub repository..."):
+                    try:
+                        # Process GitHub repository
+                        repo_path = process_github_repository(repo_url, branch, token)
+                        
+                        if repo_path:
+                            st.session_state.zip_file_path = repo_path
+                            st.session_state.upload_source = "github"
+                            st.session_state.upload_success = True
+                            
+                            st.markdown(
+                                '<div class="success-box">'
+                                f"Successfully connected to repository: {repo_url}"
+                                "</div>",
+                                unsafe_allow_html=True
+                            )
+                        else:
+                            st.error("Failed to process GitHub repository")
+                    except Exception as e:
+                        st.error(f"Error connecting to GitHub: {str(e)}")
+        
+        # Single COBOL Program Option
+        elif upload_option == "Single COBOL Program":
+            st.markdown(
+                '<div class="info-box">'
+                "<b>Single COBOL Program Upload:</b><br>"
+                "Please upload a ZIP file containing:<br><br>"
+                "```<br>"
+                "- Your main COBOL program (.cbl or .cob file)<br>"
+                "- Any copybooks (.cpy files) referenced by the program<br>"
+                "- Optional JCL files (.jcl) if available<br>"
+                "```<br><br>"
+                "The files can be in a flat structure - no specific folders required."
+                "</div>",
+                unsafe_allow_html=True
+            )
+            
+            uploaded_file = st.file_uploader("Upload your COBOL files as ZIP", type=["zip"], key="single_upload")
+            
+            if uploaded_file is not None:
+                # Save uploaded file to temp directory
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as tmp_file:
+                    tmp_file.write(uploaded_file.getvalue())
+                    zip_file_path = tmp_file.name
+                
+                st.session_state.zip_file_path = zip_file_path
+                st.session_state.upload_source = "single"
+                st.session_state.upload_success = True
+                
+                st.markdown(
+                    '<div class="success-box">'
+                    f"Successfully uploaded: {uploaded_file.name}"
+                    "</div>",
+                    unsafe_allow_html=True
+                )
+        
+        # Common process button for all upload options
+        if 'upload_success' in st.session_state and st.session_state.upload_success:
             if st.button("Process COBOL Files"):
                 with st.spinner("Extracting and analyzing COBOL files..."):
                     # Initialize the data agent
                     data_agent = DataAgent(verbose=verbose_mode)
                     
-                    # Process the uploaded file
-                    extraction_result = data_agent.process({
-                        'zip_file_path': zip_file_path
-                    })
+                    # Process based on upload source
+                    upload_source = st.session_state.get('upload_source', 'zip')
+                    
+                    if upload_source == "github" or upload_source == "single":
+                        # For GitHub or single program sources, use special processing
+                        if upload_source == "single":
+                            extraction_result = process_single_program_file(st.session_state.zip_file_path)
+                        else:  # github
+                            extraction_result = data_agent.process({
+                                'zip_file_path': st.session_state.zip_file_path
+                            })
+                    else:  # Regular ZIP upload
+                        extraction_result = data_agent.process({
+                            'zip_file_path': st.session_state.zip_file_path
+                        })
                     
                     # Store the extraction result in session state
                     st.session_state.extraction_result = extraction_result
