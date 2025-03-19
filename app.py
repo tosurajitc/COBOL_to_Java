@@ -896,6 +896,23 @@ def main():
         try:
             st.markdown('<div class="sub-header">Java Conversion</div>', unsafe_allow_html=True)
 
+
+            with st.expander("Output Settings"):
+                # Get default path from environment variables
+                default_output_path = os.getenv("JAVA_OUTPUT_PATH", "./output/java_programs")
+                
+                # Allow user to customize the output path
+                custom_output_path = st.text_input(
+                    "Java Output Directory", 
+                    value=default_output_path,
+                    help="Directory where converted Java files will be stored"
+                )
+                
+                # Save the custom path to session state
+                if custom_output_path != default_output_path:
+                    st.session_state.custom_output_path = custom_output_path
+                    st.info(f"Java files will be saved to: {custom_output_path}")
+
             def get_standard_package(program_name):
                 """Generate a standardized package name for a given program"""
                 # Convert to lowercase and remove any special characters
@@ -936,7 +953,7 @@ def main():
                     packages[package].append(class_name)
                 
                 # Build folder structure representation
-                structure = ["📁 src", "  📁 main", "    📁 java"]
+                structure = [" 📁 COBOL_to_java"]
                 
                 for package, classes in sorted(packages.items()):
                     # Split package into folder hierarchy
@@ -1149,13 +1166,22 @@ def main():
                                             status_text.info("Creating Java file...")
                                             progress_bar.progress(80)
                                             
+
+                                            if 'custom_output_path' in st.session_state:
+                                                conversion_agent.output_path = st.session_state.custom_output_path
+
+                                            # Or directly when using the path
+                                            
                                             # Create directory structure
+                                            
+                                            java_project_path = Path(st.session_state.get('custom_output_path', os.getenv("JAVA_OUTPUT_PATH", "./output/java_programs")))
                                             package_path = file_info.get("package", "com.generated").replace(".", "/")
-                                            file_dir = java_project_path / "src" / "main" / "java" / package_path
+                                            file_dir = java_project_path / "COBOL_to_java" / package_path
                                             file_dir.mkdir(parents=True, exist_ok=True)
                                             
                                             # Write the Java file
                                             file_path = file_dir / f"{file_info['file_name']}.java"
+                                            #file_path = os.path.join(conversion_agent.output_path, f"{file_info['file_name']}.java")
                                             
                                             # Ensure content has package declaration
                                             content = file_info["content"]
@@ -1282,7 +1308,7 @@ def main():
                             
                             # Display download section if all steps complete
                             if st.session_state.conversion_progress["steps_completed"] == len(conversion_steps):
-                                st.markdown("### Java Conversion Complete!")
+                                #st.markdown("### Java Conversion Complete!")
                                 if st.session_state.conversion_progress["steps_completed"] == len(conversion_steps):
                                     st.markdown("### Java Conversion Complete!")
                                     st.success(f"All {len(conversion_steps)} steps completed successfully. You can now download the converted Java code.")
@@ -1294,8 +1320,8 @@ def main():
                                     
                                     st.info("""
                                     This is the folder structure of your converted Java project. 
-                                    The structure follows standard Maven/Gradle conventions with:
-                                    - Source code under src/main/java
+                                    
+                                    - Source code under COBOL_to_java/com/conversion
                                     - Packages organized by domain
                                     - Each Java class in its corresponding package folder
                                     """)
